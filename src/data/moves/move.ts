@@ -3680,7 +3680,7 @@ export class OneHitKOAttr extends MoveAttr {
   getCondition(): MoveConditionFunc {
     return (user, target, _move) => {
       const cancelled = new BooleanHolder(false);
-      applyAbAttrs("BlockOneHitKOAbAttr", { pokemon: target, cancelled });
+      applyAbAttrs("BlockOneHitKOAbAttr", { pokemon: target, cancelled, simulated: true });
       return !cancelled.value && user.level >= target.level;
     };
   }

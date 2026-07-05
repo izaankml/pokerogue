@@ -823,6 +823,9 @@ export class MovePhase extends PokemonPhase {
     // TODO: Move this to the Move effect phase where it belongs.
     // Fourth failure check happens _after_ protean
     if (!move.applyConditions(user, opponent, 4)) {
+      if (opponent != null && move.hasAttr("OneHitKOAttr")) {
+        applyAbAttrs("BlockOneHitKOAbAttr", { pokemon: opponent, cancelled: new BooleanHolder(false) });
+      }
       this.failMove();
       return;
     }

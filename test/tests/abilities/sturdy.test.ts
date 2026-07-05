@@ -1,3 +1,4 @@
+import { globalScene } from "#app/global-scene";
 import { AbilityId } from "#enums/ability-id";
 import { MoveId } from "#enums/move-id";
 import { SpeciesId } from "#enums/species-id";
@@ -56,6 +57,38 @@ describe("Abilities - Sturdy", () => {
     await game.toEndOfTurn();
 
     expect(game.field.getEnemyPokemon()).toHaveFullHp();
+  });
+
+  it("shows the ability flyout exactly once when an OHKO move fails, and not during enemy move selection", async () => {
+    // Give the player Sturdy and let the enemy AI pick between an OHKO move and Splash.
+    // Move selection evaluates Fissure's conditions (which check for Sturdy), which must not queue a flyout.
+    // NB: The AI needs 2+ moves to go through move scoring; with the test RNG stub it will always pick Fissure.
+    game.override
+      .startingLevel(5)
+      .ability(AbilityId.STURDY)
+      .enemyLevel(100)
+      .enemyAbility(AbilityId.NO_GUARD)
+      .enemyMoveset([MoveId.FISSURE, MoveId.SPLASH]);
+    await game.classicMode.startBattle(SpeciesId.ARON);
+
+    const player = game.field.getPlayerPokemon();
+    const enemy = game.field.getEnemyPokemon();
+    const abDisplaySpy = vi.spyOn(globalScene.phaseManager, "queueAbilityDisplay");
+    const countPlayerFlyouts = () =>
+      abDisplaySpy.mock.calls.filter(([pokemon, _passive, show]) => pokemon === player && show).length;
+
+    game.move.use(MoveId.SPLASH);
+    // The enemy has chosen its move at this point, but no moves have been used yet
+    await game.phaseInterceptor.to("TurnStartPhase", false);
+
+    expect(countPlayerFlyouts()).toBe(0);
+
+    await game.toEndOfTurn();
+
+    expect(enemy.getLastXMoves(1)[0].move).toBe(MoveId.FISSURE);
+    expect(player).toHaveFullHp();
+    // Sturdy should be shown exactly once, when Fissure fails
+    expect(countPlayerFlyouts()).toBe(1);
   });
 
   it("doesn't incorrectly activate on the second hit of a multi-hit if the damage from the first hit is reduced by boss bars", async () => {
